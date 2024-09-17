@@ -5,6 +5,15 @@ import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import {Math} from "./libraries/Math.sol";
 
 
+///////////////
+/// Errors //// 
+/////////////// 
+
+error InsufficientLiquidityMinted();
+error InsufficientLiquidityBurned();
+error TransferFailed();
+
+
 ///////////////////
 /// Interface ////
 /////////////////
@@ -17,6 +26,15 @@ interface IERC20 {
 
 contract FluidSwapV2Pair is ERC20, Math{
 
+///////////////
+/// Events //// 
+/////////////// 
+
+event Burn(address indexed sender, uint256 amount0, uint256 amount1);
+event Mint(address indexed sender, uint256 amount0, uint256 amount1);
+event Sync(uint256 reserve0, uint256 reserve1);
+
+
 /////////////////////////
 //// State Variables ////
 /////////////////////////
@@ -26,8 +44,8 @@ contract FluidSwapV2Pair is ERC20, Math{
   address public token0;
   address public token1;
 
-  uint112 private reserve0; 
-  uint112 private reserve1;
+  uint112 public reserve0; 
+  uint112 public reserve1;
 
 /////////////////////////
 //// Constructor ////////
@@ -54,13 +72,33 @@ contract FluidSwapV2Pair is ERC20, Math{
     uint256 liquidity;
 
     if(totalSupply==0){
-        liquidity =Math.sqrt(amount0*amount1)-MINIMUM_LIQUIDITY;
-        _mint(address(0),MINIMUM_LIQUIDITY);
+        liquidity =Math.sqrt(amount0*amount1)-MINIMUM_LIQUIDITY; // Subtracting Minimum liquidity to prevent inflation attack
+        _mint(address(0),MINIMUM_LIQUIDITY); // Locking tokens forever
     }else{
         liquidity = Math.min((amount0 * totalSupply)/reserve0,(amount1 * totalSupply)/reserve1);
     }
 
+
+    if (liquidity <= 0) revert InsufficientLiquidityMinted();
+
+    _mint(msg.sender, liquidity);
+
+    _update(balance0, balance1);
+
+    emit Mint(msg.sender, amount0, amount1);
+
   }
 
+
+//////////////////// 
+//// Private /////// 
+///////////////////
+
+
+function _update(uint256 balance0, uint256 balance1) private {
+        reserve0 = uint112(balance0);
+        reserve1 = uint112(balance1);
+        emit Sync(reserve0, reserve1);
+    }
 
 }
