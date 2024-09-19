@@ -3,6 +3,7 @@ pragma solidity ^0.8.18;
 
 import {ERC20} from "../lib/solmate/src/tokens/ERC20.sol";
 import {Math} from "./libraries/Math.sol";
+import {UQ112x112} from "./libraries/UQ112x112.sol";
 
 
 ///////////////
@@ -14,6 +15,8 @@ error InsufficientLiquidityBurned();
 error TransferFailed();
 error InsufficientLiquidity();
 error Invalidk();
+error BalanceOverflow();
+error AlreadyInitialized();
 
 ///////////////////
 /// Interface ////
@@ -27,6 +30,10 @@ interface IERC20 {
 
 contract FluidSwapV2Pair is ERC20, Math{
 
+
+using UQ112x112 for uint224;
+
+
 ///////////////
 /// Events //// 
 /////////////// 
@@ -34,6 +41,7 @@ contract FluidSwapV2Pair is ERC20, Math{
 event Burn(address indexed sender, uint256 amount0, uint256 amount1);
 event Mint(address indexed sender, uint256 amount0, uint256 amount1);
 event Sync(uint256 reserve0, uint256 reserve1);
+event swap(address indexed sender,uint256 amount0Out,uint256 amount1Out,address indexed to);
 
 
 /////////////////////////
@@ -65,7 +73,13 @@ event Sync(uint256 reserve0, uint256 reserve1);
 //// Public Functions //////
 ////////////////////////////
 
+    function initialize(address token0_, address token1_) public {
+        if (token0 != address(0) || token1 != address(0))
+            revert AlreadyInitialized();
 
+        token0 = token0_;
+        token1 = token1_;
+    }
 
   function mint() public {
     uint256 balance0 = IERC20(token0).balanceOf(address(this));
@@ -88,7 +102,7 @@ event Sync(uint256 reserve0, uint256 reserve1);
 
     _mint(msg.sender, liquidity);
 
-    _update(balance0, balance1);
+    _update(balance0, balance1, reserve0, reserve1);
 
     emit Mint(msg.sender, amount0, amount1);
 
@@ -113,11 +127,17 @@ function burn() public {
   balance0 = IERC20(token0).balanceOf(address(this));
   balance1 = IERC20(token1).balanceOf(address(this));
 
-  _update(balance0, balance1);
+  _update(balance0, balance1, reserve0, reserve1);
 
   emit Burn(msg.sender, amount0, amount1);
 
 }
+
+function getReserves() public view returns (uint112,uint112,uint32)
+    {
+        return (reserve0, reserve1, blockTimestampLast);
+    }
+
 
 function Swap(
   uint256 amount0Out,
@@ -144,7 +164,7 @@ function Swap(
   if (amount0Out > 0) _safeTransfer(token0, to, amount0Out);
   if (amount1Out > 0) _safeTransfer(token1, to, amount1Out);
 
-  emit Swap(msg.sender, amount0Out, amount1Out, to);
+  emit swap(msg.sender, amount0Out, amount1Out, to);
 }
 
 
@@ -162,7 +182,7 @@ function _update(
   uint256 balance0,
   uint256 balance1,
   uint112 reserve0,
-  uint112 reserve1,
+  uint112 reserve1
 ) private {
 
     if(balance0>type(uint112).max||balance1 > type(uint112).max){
@@ -174,15 +194,20 @@ function _update(
       uint32 timeElapsed = uint32(block.timestamp) - blockTimestampLast;
 
       if(timeElapsed>0&&reserve0>0&&reserve1>0){
+         price0CumulativeLast +=uint256(UQ112x112.encode(reserve1).uqdiv(reserve0)) *timeElapsed;
+         price1CumulativeLast +=uint256(UQ112x112.encode(reserve0).uqdiv(reserve1)) *timeElapsed;     
+        }
+      
+      reserve0 = uint112(balance0);
+      reserve1 = uint112(balance1);
 
-      }
+      blockTimestampLast = uint32(block.timestamp);
+
+      emit Sync(reserve0, reserve1);
 
     }
 
     }
-
-
-
 
 function _safeTransfer(
         address token,
