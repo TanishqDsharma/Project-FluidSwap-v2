@@ -46,3 +46,24 @@ There are two ways to perform token transfers:
 A price oracle is a serivce that provides reliable, real-world data (like the price of a cryptocurrency or other asset) and this can be queried by smartcontracts.
 
 Uniswap is a decentralized application that is running onchain. Usually its used for excahnging tokens but it can also be used as a `price oracle`. 
+
+
+# Output Amount Calculation:
+
+In constant product exchange price is simply a relation between reserves.
+
+Lets take a look at constant product formula:
+
+           x*y = k
+
+Where x and y are pair reserves (reserve0) and (reserve1). When doing a swap, x and y are changed but k remains the same (or it grows slowly thanks to swap fees). 
+
+We can write the above formula as:
+
+(x+r*deltax)(y-delaty) = xy
+
+Where r is 1-swapfee , (1-0.3=0.997) delta x is the amount we give in to get deltay the amount we get.
+
+After doing the algebraic calcs we get:
+
+    deltay = y*r*deltax/x+r*deltax
