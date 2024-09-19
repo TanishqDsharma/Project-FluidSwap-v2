@@ -99,6 +99,44 @@ function getAmountOut(
 }
 
 /**
+ * @notice This functions calculates the amount of token that need to be sent to get the required output amount
+ * @param amountOut Pass the desired amount of output tokens (deltay).
+ * @param reserveIn The current reserve of the input token in the liquidity pool (referred to as reserve of x).
+ * @param reserveOut  The current reserve of the output token in the liquidity pool (referred to as reserve of y)
+ */
+
+function getAmountIn(
+    uint256 amountOut, //is deltay
+    uint256 reserveIn, 
+    uint256 reserveOut) public returns(uint256){
+
+    //First check, this checks if the ouput amount is zero and if its zero then it reverts the transaction
+    if (amountOut == 0) revert InsufficientAmount();
+    //Next check, this checks if both reservers are having sufficient liquidity for the swap
+    if (reserveIn == 0 || reserveOut == 0) revert InsufficientLiquidity();
+    
+    // After doing some algebric calculation the formula to calculate input amout comes out to be:
+    // deltax = deltay * x / r(y-deltay) 
+    // NOTE: r is the fee multiplier which is 997/1000 which accounts for 0.3%
+    
+    // So, deltay * reserveIn , where delta y is amountOut and x is reserveIn
+    uint256 numerator = reserveIn*amountOut*1000;
+
+    // Next r(y-deltay) where r  is the fees, y is reserveOut and deltay is amountOut
+    uint256 denominator = 997*(reserveOut-amountOut);
+
+
+    // Integer division in solidity calculation,  rounds result down, which means that result gets truncated
+    // we want to guarantee that the calculated amount will result in the requested amountOut. If result is  
+    // truncated output amount will be slightly smaller. nsuring the user provides a slightly larger input amount. 
+    // This is a safety margin that guarantees sufficient input tokens to complete the swap, avoiding any rounding 
+    // issues that could result in a failed transaction.
+     
+    return (numerator/denominator)+1;
+
+}
+
+/**
  * @notice This function calculates the amountOut for each swap and return that result as an array of uint
  * @param factory Pass address of the factory contract
  * @param amountIn The amount of the input token being swapped in the first step of the path.
@@ -129,4 +167,18 @@ function getAmountsOut(
     }
 
 
+
+function getAmountsIn(
+    address factory, 
+    uint256 amountOut, 
+    address[] memory path
+    ) public returns (uint256[] memory amounts) {
+       for (uint256 i = path.length - 1; i > 0; i--) {
+        (uint256 reserve0, uint256 reserve1) = getReserves(factory,path[i - 1],path[i]);
+        amounts[i - 1] = getAmountIn(amounts[i], reserve0, reserve1);
+    }
+    return amounts;
+    }
+
 }
+
