@@ -18,6 +18,7 @@ error InsufficientAAmount();
 error InsufficientBAmount();
 error SafeTransferFailed();
 error InsufficientOutputAmount();
+error ExcessiveInputAmount();
 
 IFluidSwapV2Factory factory;
 
@@ -104,6 +105,23 @@ function swapExactTokensForTokens(
     
     }
 
+
+function swapTokensForExactTokens(
+    uint256 amountOut,
+    uint256 amountInMax,
+    address[] calldata path,
+    address to
+) public returns(uint256[] memory amounts){
+
+    amounts = FluidSwapV2Library.getAmountsIn(address(factory), amountOut, path);
+
+    if (amounts[amounts.length - 1] > amountInMax) revert ExcessiveInputAmount();
+
+    _safeTransferFrom(path[0],msg.sender,FluidSwapV2Library.pairFor(address(factory), path[0], path[1]),amounts[0]);
+    _swap(amounts, path, to);
+
+
+}
 
 
 
@@ -193,6 +211,7 @@ function _safeTransferFrom(
         );
         if (!success || (data.length != 0 && !abi.decode(data, (bool))))
             revert SafeTransferFailed();
+
     }
 
 
