@@ -17,6 +17,7 @@ error InsufficientLiquidity();
 error Invalidk();
 error BalanceOverflow();
 error AlreadyInitialized();
+error InsufficientInputAmount();
 
 ///////////////////
 /// Interface ////
@@ -73,38 +74,54 @@ event swap(address indexed sender,uint256 amount0Out,uint256 amount1Out,address 
 //// Public Functions //////
 ////////////////////////////
 
-    function initialize(address token0_, address token1_) public {
-        if (token0 != address(0) || token1 != address(0))
-            revert AlreadyInitialized();
 
-        token0 = token0_;
-        token1 = token1_;
-    }
 
-  function mint() public {
+function initialize(address token0_, address token1_) public {
+  if (token0 != address(0) || token1 != address(0)) revert AlreadyInitialized();
+  token0 = token0_;
+  token1 = token1_; }
+
+
+/**
+ * @notice 
+ * @param to Pass the address that will receive the LP shares/tokens
+ */
+
+  function mint(address to) public returns(uint256 liquidity){
+    
+    // Getting the reserves
+    (uint112 _reserve0, uint112 _reserve1,) = getReserves();
+
+    // Getting the actaul balance of the tokens
     uint256 balance0 = IERC20(token0).balanceOf(address(this));
     uint256 balance1= IERC20(token1).balanceOf(address(this));
 
     uint256 amount0 = balance0 - reserve0;
     uint256 amount1 = balance1 - reserve1;
 
-    uint256 liquidity;
+    // If totalSupply is zero then it calculates the liquidity by using the below logic:
+    // Take the square root amount of token0 that came in, multiply this by amount of token1  
+    // came in and then substract with MINIMUM_LIQUIDITY
 
     if(totalSupply==0){
         liquidity =Math.sqrt(amount0*amount1)-MINIMUM_LIQUIDITY; // Subtracting Minimum liquidity to prevent inflation attack
         _mint(address(0),MINIMUM_LIQUIDITY); // Locking tokens forever
     }else{
+      // If the total supply is not equal to zero calculate the liquidity with below logic: So, the logic says take the minimum
+      // 
         liquidity = Math.min((amount0 * totalSupply)/reserve0,(amount1 * totalSupply)/reserve1);
     }
 
-
+    // Check, for checking liquidity is greater than zero
     if (liquidity <= 0) revert InsufficientLiquidityMinted();
 
-    _mint(msg.sender, liquidity);
+    // Calling _mint to mint the pool shares
+    _mint(to, liquidity);
 
+    // Calling internal function _update 
     _update(balance0, balance1, reserve0, reserve1);
 
-    emit Mint(msg.sender, amount0, amount1);
+    emit Mint(to, amount0, amount1);
 
   }
 
@@ -142,9 +159,10 @@ function getReserves() public view returns (uint112,uint112,uint32)
 function Swap(
   uint256 amount0Out,
   uint256 amount1Out,
-  address to 
+  address to,
+  bytes calldata data
 ) public {
-  if( amount0Out==0&&amount1Out==0){
+  if(amount0Out==0&&amount1Out==0){
     revert InsufficientLiquidity();
       }
   
@@ -153,10 +171,24 @@ function Swap(
   if (amount0Out > reserve0_ || amount1Out > reserve1_){
       revert InsufficientLiquidity();}
   
+  if (amount0Out > 0) _safeTransfer(token0, to, amount0Out);
+  if (amount1Out > 0) _safeTransfer(token1, to, amount1Out);
+  
+
+
+  
   uint256 balance0 = IERC20(token0).balanceOf(address(this)) - amount0Out;
   uint256 balance1 = IERC20(token1).balanceOf(address(this)) - amount1Out;
 
-  if(balance0*balance1<uint256(reserve0)*uint256(reserve1)){
+  uint256 amount0In = balance0 > reserve0 - amount0Out? balance0 - (reserve0 - amount0Out): 0;
+  uint256 amount1In = balance1 > reserve1 - amount1Out? balance1 - (reserve1 - amount1Out): 0;
+
+  if (amount0In == 0 && amount1In == 0) revert InsufficientInputAmount();
+
+  uint256 balance0Adjusted = (balance0 * 1000) - (amount0In * 3);
+  uint256 balance1Adjusted = (balance1 * 1000) - (amount1In * 3);
+
+  if(balance0Adjusted * balance1Adjusted < uint256(reserve0_) * uint256(reserve1_) * (1000**2)){
     revert Invalidk();
   }
 
