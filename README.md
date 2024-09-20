@@ -24,6 +24,45 @@ A. Sending tokens to smart contract and store them there for sometime.
 
 
 
+### Adding Liquidity:
+
+Q. When a user deposit tokens to the contract how much shares should the pool contract mint to the user?
+A. 
+
+ This can be calculated by the below equation:
+
+ s = shares to mint 
+ T = Total shares (The current total shares of the pool) before the deposit
+ L1 = Value of pool after the user deposits  (You can think value of the pool as the balance of tokens in the pool contract)
+ L0 = Value of pool before the user deposits
+
+Mint shares proportional to increase of L0 to L1:
+ s = (L1-L0/L0)*T
+
+Lets take an example and understand this:
+
+Suppose, there's a pool contract having 1000 USDC init and we define the state as L0. Later, a user comes and makes a deposit of 200 USDC in the pool lets take this state as L1. The total vaule of the pool in the state L1 is 1200 USDC.
+
+Now, lets use the above equation to mint share to reflect this change:
+
+NOTE: Lets, say total shares before the deposit are 1000
+
+s = (1200-1000/1000)*1000
+
+s= (200/1000)*1000
+s= 500
+
+So, we need to mint 500 shares to reflect the 50% increase in the pools value. Now, total shares in the pool are 1500.
+
+Q. When user decides to burn the shares to get back some token, how many tokens should this user receive? 
+
+We can calculate how much token user would receive for burning there shares by using the below equation:
+
+    shares burnt / Total shares * Amount of token locked in the pool contract
+
+S = 
+
+
 ### Token Swapping
 
 Swapping means giving some amount of token A for some in exchange for some amount of token B. To peform this kind of exchange we need a mediator for that:
@@ -67,3 +106,17 @@ Where r is 1-swapfee , (1-0.3=0.997) delta x is the amount we give in to get del
 After doing the algebraic calcs we get:
 
     deltay = y*r*deltax/x+r*deltax
+
+
+### FlashLoan 
+
+Flashloan is an unlimited and uncollaterlaizes loan the needs to be paid in the same transaction where its taken. 
+
+Flashloans can only be used by smart contracts. Here's how borrowing / repayinh happens in flash loans:
+
+1. A smart contract borrows a flashloan from another contract
+2. The lender contract sends token to the borrowing contract and calls a special function in the contract.
+3. In the special function, the borrowing contract performs some operations with the loan and then transfers the loan back.
+4. The lender contract ensures that the whole amount was paid back. In case when there are fees, it also ensures that they were paid.
+5. Control flow returns to the borrowing contract.
+
