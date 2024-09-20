@@ -49,6 +49,16 @@ function sortTokens(address tokenA, address tokenB)
 
     }
 
+
+/**
+ * //////////////////REDO
+ * @notice So what this function will do is given some amount of asset and pair reserves, it will return equvilant amount
+ * of the other asset.
+ * @param amountIn amount of token you are sending in
+ * @param reserveIn amount of tokenA before adding liquidity
+ * @param reserveOut amount of tokenB before adding liquidity
+ */
+
 function quote(
     uint256 amountIn,
     uint256 reserveIn,
@@ -62,14 +72,13 @@ function quote(
 
 
 
-
-
 /**
  * @dev Calculates the output amount for a given input amount and liquidity pool reserves, with a 0.3% fee applied.
  * @param amountIn amount of input token provided for the swap (referred to as deltax).
  * @param reserveIn The current reserve of the input token in the liquidity pool (referred to as reserve of x).
  * @param reserveOut  The current reserve of the output token in the liquidity pool (referred to as reserve of y)
  */
+
 function getAmountOut(
     uint256 amountIn, // is deltax
     uint256 reserveIn, // reserveIn is reserve of x
