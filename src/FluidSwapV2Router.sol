@@ -30,17 +30,22 @@ constructor(address _factory) {
  factory = IFluidSwapV2Factory(_factory);
 }
 
+/** 
+* @notice This function adds liquidty 
+* @param tokenA Pass tokenA to find or create the pair we want to add liquidity to
+* @param tokenB Pass tokenB to find or create the pair we want to add liquidity to
+* @param amountADesired Pass the amount of tokenA you want to deposit to the pair
+* @param amountBDesired Pass the amount of tokenB you want to deposit to the pair
+* @param amountAMin Pass the minimum amount token A you want to deposit
+* @param amountBMin Pass the minimum amount token B you want to deposit
+* @param to address is the address that receives LP-tokens. This the address the will receive the shares that is mintedby 
+    FluidSwapV2Pair
+* @return amountA returns amountA, is the amount of tokens that was actually sent to the FluidSwapV2Pair contract
+* @return amountB returns amountB, is the amount of tokens that was actually sent to the FluidSwapV2Pair contract
+* @return liquidity returns the amount of pool shares that was minted to the address for providing 
+    amountA and amountB for liqudity
 
-/// @param tokenA Pass tokenA to find or create the pair we want to add liquidity to
-/// @param tokenB Pass tokenB to find or create the pair we want to add liquidity to
-/// @param amountADesired Pass the amount of tokenA you want to deposit to the pair
-/// @param amountBDesired Pass the amount of tokenB you want to deposit to the pair
-/// @param amountAMin Pass the minimum amount token A you want to deposit
-/// @param amountBMin Pass the minimum amount token B you want to deposit
-/// @param to address is the address that receives LP-tokens.
-/// @return amountA 
-/// @return amountB 
-/// @return liquidity 
+*/ 
 
 function addLiquidity(
     address tokenA, 
@@ -56,27 +61,32 @@ function addLiquidity(
             factory.createPair(tokenA, tokenB);
         }
 
-        // Caluclating the amount of tokenA and tokenB for deposit
-
+        // Caluclating the amount of tokenA and tokenB for deposit or we can say that will be sent to the pair contract
         (amountA, amountB) = _calculateLiquidity(tokenA,tokenB,amountADesired,amountBDesired,amountAMin,amountBMin);
-
+        
+        // Getting the address of the pairContract 
         address pairAddress = FluidSwapV2Library.pairFor(address(factory),tokenA,tokenB);
+
+        // Transfers tokenA and tokenB to the Pair contract
         _safeTransferFrom(tokenA, msg.sender, pairAddress, amountA);
         _safeTransferFrom(tokenB, msg.sender, pairAddress, amountB);
 
+        // Finally, calling the function mint to get the pool shares.
         liquidity = IFluidSwapV2Pair(pairAddress).mint(to);
 
 
 }
 
-/// @notice This function swaps an exact input amount (amountIn) for some output amount not smaller than amountOutMin
-/// @param amountIn Enter the amount of tokens you want to swap
-/// @param amountOutMin Minimum amount of tokens that you want to recive atlest
-/// @param path The path parameter is just an array of token addresses. If we want to swap TokenA for TokenB directly 
-///  the path will contain  only Token A and Token B addresses. If we want to swap Token A for Token C via Token B, the path will 
-///  contain: Token A address, Token B address, Token C address; the contract would swap Token A for Token B and then Token B 
-///  for Token C. 
-/// @param to Address to recive the tokens
+/**
+* @notice This function swaps an exact input amount (amountIn) for some output amount not smaller than amountOutMin
+* @param amountIn Enter the amount of tokens you want to swap
+* @param amountOutMin Minimum amount of tokens that you want to recive atlest
+* @param path The path parameter is just an array of token addresses. If we want to swap TokenA for TokenB directly the path 
+              will contain  only Token A and Token B addresses. If we want to swap Token A for Token C via Token B, the path 
+              will contain: Token A address, Token B address, Token C address; the contract would swap Token A for Token B 
+              and then Token B for Token C. 
+* @param to Address to recive the tokens
+*/
 function swapExactTokensForTokens(
     uint256 amountIn, 
     uint256 amountOutMin, 
@@ -129,6 +139,15 @@ function swapTokensForExactTokens(
 //// Private and Internal Funcs //// 
 //////////////////////////////////// 
 
+/** 
+* @param tokenA Pass tokenA to find or create the pair we want to add liquidity to
+* @param tokenB Pass tokenB to find or create the pair we want to add liquidity to
+* @param amountADesired Pass the amount of tokenA you want to deposit to the pair
+* @param amountBDesired Pass the amount of tokenB you want to deposit to the pair
+* @param amountAMin Pass the minimum amount token A you want to deposit
+* @param amountBMin Pass the minimum amount token B you want to deposit
+*/
+
 function _calculateLiquidity(
         address tokenA,
         address tokenB,
@@ -139,18 +158,42 @@ function _calculateLiquidity(
     ) internal returns (uint256 amountA, uint256 amountB) {
         (uint256 reserveA, uint256 reserveB) = FluidSwapV2Library.getReserves(address(factory),tokenA,tokenB);
 
+        // If the amount of token A and token B inside the contract is 0. Then the amountA and amountB will exactly the amount
+        // user desired that is amountADesired and amountBDesired. Otherwise, the pair contract already has some tokens init so we
+        // need to do some calculations.
         if (reserveA == 0 && reserveB == 0) {
             (amountA, amountB) = (amountADesired, amountBDesired);
         } else {
+
+            // Given the amountADesired it calculates the equvalent amount of tokenB which is amountBOptimal
             uint256 amountBOptimal = FluidSwapV2Library.quote(amountADesired,reserveA,reserveB);
+            
+            // If the amountBoptimal is less than the amountBDesired then, it checks if the amountBoptimal is greater than amountBMin
+            // and then if all the check passes then the amount of tokenA that will be sent is equal to amountADesired and amount of tokenB
+            // that will be sent will be equal to amountBOptimal
+
             if (amountBOptimal <= amountBDesired) {
+                
                 if (amountBOptimal <= amountBMin) revert InsufficientBAmount();
                 (amountA, amountB) = (amountADesired, amountBOptimal);
-            } else {
+            } 
+            
+            // If the amountBoptimal greater than the amount user specified (amountBDesired) then we follow the below logic
+    
+            else {
+                // Given the amountBDesired it calculates the equvalent amount of tokenA which is amountAOptimal
                 uint256 amountAOptimal = FluidSwapV2Library.quote(amountBDesired,reserveB,reserveA);
+                
+
+                // If the amountAoptimal is less than the amountADesired then, it checks if the amountAoptimal is greater than 
+                // amountAMin and then if all the check passes then the amount of tokenA that will be sent are amountAoptimal 
+                // and amount of tokenB  that will be sent are amountBDesired
+
                 assert(amountAOptimal <= amountADesired);
+                
                 if (amountAOptimal <= amountAMin) revert InsufficientAAmount();
                 (amountA, amountB) = (amountAOptimal, amountBDesired);
+            
             }
         }
     }
