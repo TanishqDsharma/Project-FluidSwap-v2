@@ -78,6 +78,48 @@ function addLiquidity(
 }
 
 /**
+ * @notice 
+ * @param tokenA Pass tokenA address
+ * @param tokenB Pass tokenB address
+ * @param liquidity is the amount of LP tokens to burn
+ * @param amountAMin is the minimum amount tokenA to get in return
+ * @param amountBMin is the minimum amount tokenB to get in return
+ * @param to the address that will receive tokens.
+ * @return amountA This is the amount of tokenA that will be withdrawn to address to
+ * @return amountB This is the amount of tokenB that will be withdrawn to address to
+ */
+
+function removeLiquidity(
+    address tokenA, 
+    address tokenB, 
+    uint256 liquidity, 
+    uint256 amountAMin,
+    uint256 amountBMin,
+    address to
+) public returns(uint amountA,uint256 amountB){
+
+    // Finding the pair using address of tokenA and tokenB
+    address pair = FluidSwapV2Library.pairFor(address(factory), tokenA, tokenB);
+
+    //Sending the LP tokens to the pair and burning exact amount of tokens:
+    IFluidSwapV2Pair(pair).transferFrom(msg.sender,pair,liquidity);
+    // Calling the burn function
+    (uint256 amount0,uint256 amount1)=IFluidSwapV2Pair(pair).burn(to);
+
+    //Sorting the Tokens
+    (address token0,) = FluidSwapV2Library.sortTokens(tokenA, tokenB);
+    (amountA,amountB) = tokenA == tokenB ? (amount0,amount1):(amount1,amount0);
+
+    //Checking amount recieved is atleast the minimum
+    if (amountA < amountAMin) revert InsufficientAAmount();
+    if (amountB < amountBMin) revert InsufficientBAmount();
+
+
+
+
+}
+
+/**
 * @notice This function swaps an exact input amount (amountIn) for some output amount not smaller than amountOutMin
 * @param amountIn Enter the amount of tokens you want to swap
 * @param amountOutMin Minimum amount of tokens that you want to recive atlest
