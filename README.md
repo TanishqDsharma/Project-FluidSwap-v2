@@ -50,7 +50,7 @@ NOTE: Lets, say total shares before the deposit are 1000
 s = (1200-1000/1000)*1000
 
 s= (200/1000)*1000
-s= 500
+s= 200
 
 So, we need to mint 500 shares to reflect the 50% increase in the pools value. Now, total shares in the pool are 1500.
 
@@ -62,6 +62,26 @@ We can calculate how much token user would receive for burning there shares by u
 
 S = 
 
+### Factory
+
+Q. How addresses are converted to their numerical value?
+
+A. Addresses are 20 bytes data that are encoded as hexadecimal value. One byte is 8 bits so these 20 bytes can be converted to a
+160 bit number. So, after the addresses converted to numbers they are sorted as regular numbers. The samller address will be assigned to token0 and the larger address will be assigned to token1.
+
+
+Q. What is Creation Code?
+
+A.  It is the runtime code + constructor args. The runtime code is the smart contract code that is compiled down to bytecode. This is the code that is executed when you send transactions.
+
+What to use the byteCode for?
+
+The bytecode will be used by create2 to deploy the fluidSwapV2Pair contract as create allows us to easily calculate the address to the contract before its deployed. The way it calculates is, it takes keccack256 hash of 
+
+1. 0xff : 
+2. deployer: Address of the deployer
+3. salt::
+4. creation bytecode
 
 ### Token Swapping
 
