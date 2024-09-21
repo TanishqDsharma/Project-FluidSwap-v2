@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 import {IFluidSwapV2Factory} from "./interfaces/IFluidSwapV2Factory.sol";
 import {IFluidSwapV2Pair} from "./interfaces/IFluidSwapV2Pair.sol";
-import {FluidSwapV2Library} from "./libraries/FluidSwapV2Library.sol";
+import {FluidSwapV2Library} from "../src/FluidSwapV2Library.sol";
 
 
 
