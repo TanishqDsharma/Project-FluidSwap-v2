@@ -108,7 +108,7 @@ function initialize(address token0_, address token1_) public {
     }else{
       // If the total supply is not equal to zero calculate the liquidity with below logic: So, the logic says take the minimum
       // 
-        liquidity = Math.min((amount0 * totalSupply)/reserve0,(amount1 * totalSupply)/reserve1);
+        liquidity = Math.min((amount0 * totalSupply)/_reserve0,(amount1 * totalSupply)/_reserve1);
     }
 
     // Check, for checking liquidity is greater than zero
@@ -118,7 +118,7 @@ function initialize(address token0_, address token1_) public {
     _mint(to, liquidity);
 
     // Calling internal function _update 
-    _update(balance0, balance1, reserve0, reserve1);
+    _update(balance0, balance1, _reserve0, _reserve1);
 
     emit Mint(to, amount0, amount1);
 
@@ -151,11 +151,11 @@ function burn(address to) public returns(uint256 amount0,uint256 amount1){
 
 }
 
-function getReserves() public view returns (uint112,uint112,uint32)
-    {
-        return (reserve0, reserve1, blockTimestampLast);
+function getReserves() public view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) {
+        _reserve0 = reserve0;
+        _reserve1 = reserve1;
+        _blockTimestampLast = blockTimestampLast;
     }
-
 
 function Swap(
   uint256 amount0Out,
@@ -210,36 +210,33 @@ function Swap(
 /// So, every time a user swaps, add or remove liquidity price0CummalativeLast and price1Cummalative1 will be updated.
 
 
-
 function _update(
-  uint256 balance0,
-  uint256 balance1,
-  uint112 reserve0,
-  uint112 reserve1
-) private {
+        uint256 balance0,
+        uint256 balance1,
+        uint112 reserve0_,
+        uint112 reserve1_
+    ) private {
+        if (balance0 > type(uint112).max || balance1 > type(uint112).max)
+            revert BalanceOverflow();
 
-    if(balance0>type(uint112).max||balance1 > type(uint112).max){
-                  revert BalanceOverflow();
-    }
+        unchecked {
+            uint32 timeElapsed = uint32(block.timestamp) - blockTimestampLast;
 
-    unchecked {
-      // Stores the time for last time the _update function was called 
-      uint32 timeElapsed = uint32(block.timestamp) - blockTimestampLast;
-
-      if(timeElapsed>0&&reserve0>0&&reserve1>0){
-         price0CumulativeLast +=uint256(UQ112x112.encode(reserve1).uqdiv(reserve0)) *timeElapsed;
-         price1CumulativeLast +=uint256(UQ112x112.encode(reserve0).uqdiv(reserve1)) *timeElapsed;     
+            if (timeElapsed > 0 && reserve0_ > 0 && reserve1_ > 0) {
+                price0CumulativeLast +=
+                    uint256(UQ112x112.encode(reserve1_).uqdiv(reserve0_)) *
+                    timeElapsed;
+                price1CumulativeLast +=
+                    uint256(UQ112x112.encode(reserve0_).uqdiv(reserve1_)) *
+                    timeElapsed;
+            }
         }
-      
-      reserve0 = uint112(balance0);
-      reserve1 = uint112(balance1);
 
-      blockTimestampLast = uint32(block.timestamp);
+        reserve0 = uint112(balance0);
+        reserve1 = uint112(balance1);
+        blockTimestampLast = uint32(block.timestamp);
 
-      emit Sync(reserve0, reserve1);
-
-    }
-
+        emit Sync(reserve0, reserve1);
     }
 
 function _safeTransfer(
